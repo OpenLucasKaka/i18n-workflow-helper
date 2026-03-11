@@ -1,0 +1,174 @@
+{
+  "name": "i18n-workflow-helper",
+  "displayName": "i18n Workflow Helper",
+  "description": "Extract text, scan i18n issues, preview locale diffs, and manage locale files for React TSX projects.",
+  "version": "0.1.0",
+  "publisher": "local",
+  "preview": true,
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "i18n",
+    "localization",
+    "react",
+    "tsx",
+    "json",
+    "jsonc"
+  ],
+  "activationEvents": [
+    "onCommand:i18nWorkflow.extractText",
+    "onCommand:i18nWorkflow.extractTextAtRange",
+    "onCommand:i18nWorkflow.exportLocales",
+    "onCommand:i18nWorkflow.importLocale",
+    "onCommand:i18nWorkflow.applyPendingImport",
+    "onCommand:i18nWorkflow.discardPendingImport",
+    "onCommand:i18nWorkflow.setDefaultLanguage",
+    "onCommand:i18nWorkflow.setLocaleDirectory",
+    "onCommand:i18nWorkflow.scanWorkspace",
+    "onView:i18nWorkflow.problems"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "i18nWorkflow.extractText",
+        "title": "i18n: Extract Selected Text"
+      },
+      {
+        "command": "i18nWorkflow.scanWorkspace",
+        "title": "i18n: Scan Workspace"
+      },
+      {
+        "command": "i18nWorkflow.extractTextAtRange",
+        "title": "i18n: Extract Selected Text At Range"
+      },
+      {
+        "command": "i18nWorkflow.exportLocales",
+        "title": "i18n: Export Locale JSON Files"
+      },
+      {
+        "command": "i18nWorkflow.importLocale",
+        "title": "i18n: Import Locale JSON File"
+      },
+      {
+        "command": "i18nWorkflow.applyPendingImport",
+        "title": "i18n: Apply Pending Import"
+      },
+      {
+        "command": "i18nWorkflow.discardPendingImport",
+        "title": "i18n: Discard Pending Import"
+      },
+      {
+        "command": "i18nWorkflow.setDefaultLanguage",
+        "title": "i18n: Set Default Language"
+      },
+      {
+        "command": "i18nWorkflow.setLocaleDirectory",
+        "title": "i18n: Set Locale Directory"
+      },
+      {
+        "command": "i18nWorkflow.openProblem",
+        "title": "i18n: Open Problem"
+      },
+      {
+        "command": "i18nWorkflow.refreshProblems",
+        "title": "i18n: Refresh Problems"
+      },
+      {
+        "command": "i18nWorkflow.openLocaleFile",
+        "title": "i18n: Open Locale File"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "i18nWorkflow",
+          "title": "i18n",
+          "icon": "media/globe.svg"
+        }
+      ]
+    },
+    "views": {
+      "i18nWorkflow": [
+        {
+          "id": "i18nWorkflow.problems",
+          "name": "Workspace"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "i18n Workflow Helper",
+      "properties": {
+        "i18nWorkflow.localeDir": {
+          "type": "string",
+          "default": "src/locales",
+          "description": "Locale directory relative to the workspace root. Prefer the command `i18n: Set Locale Directory` to select an existing folder."
+        },
+        "i18nWorkflow.defaultLanguage": {
+          "type": "string",
+          "default": "en",
+          "scope": "resource",
+          "description": "Default language file used as the source of truth. Prefer the command `i18n: Set Default Language` to choose from configured languages."
+        },
+        "i18nWorkflow.languages": {
+          "type": "array",
+          "default": [
+            "en",
+            "zh-CN"
+          ],
+          "scope": "resource",
+          "items": {
+            "type": "string"
+          },
+          "description": "Supported language codes."
+        },
+        "i18nWorkflow.functionName": {
+          "type": "string",
+          "default": "t",
+          "description": "Translation function name used in code."
+        },
+        "i18nWorkflow.include": {
+          "type": "array",
+          "default": [
+            "src/**/*.tsx"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "Glob patterns included in scanning."
+        },
+        "i18nWorkflow.exclude": {
+          "type": "array",
+          "default": [
+            "**/node_modules/**",
+            "**/dist/**"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "Glob patterns excluded from scanning."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "watch": "tsc -w -p .",
+    "prepackage": "npm run build",
+    "package:vsix": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.10",
+    "@types/vscode": "^1.95.0",
+    "@vscode/vsce": "^3.7.1",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "jsonc-parser": "^3.3.1"
+  }
+}
