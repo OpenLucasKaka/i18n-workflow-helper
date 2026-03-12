@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.2
+
+- Include `typescript` in runtime dependencies so the extension can activate after VSIX installation.
+- Fix command availability issues caused by activation failure.
+
+## 0.1.1
+
+- Fix extension packaging and activation reliability.
+- Move the view into Explorer instead of using a separate Activity Bar icon.
+
 ## 0.1.0
 
 - Extract selected TSX text into i18n keys and update locale files.

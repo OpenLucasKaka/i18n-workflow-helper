@@ -25,7 +25,7 @@ It focuses on i18n workflow management instead of translation itself:
 ## Installation
 
 ```bash
-code --install-extension i18n-workflow-helper-0.1.0.vsix
+code --install-extension i18n-workflow-helper-0.1.2.vsix
 ```
 
 For development:
@@ -93,6 +93,14 @@ Quick fix is also supported for hardcoded text:
 - Marketplace icon is configured with the top-level `icon` field in `package.json`.
 
 ## Release Notes
+
+### 0.1.2
+
+Fixed VSIX runtime packaging so commands are available after installation.
+
+### 0.1.1
+
+Packaging and activation reliability fixes, plus Explorer view placement.
 
 ### 0.1.0
 

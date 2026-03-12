@@ -21,80 +21,86 @@ import { LocaleFileSummary } from './types';
 import { PendingImportSession } from './types';
 
 export function activate(context: vscode.ExtensionContext): void {
-  const localeService = new LocaleService();
-  const codeReplaceService = new CodeReplaceService();
-  const languageDetectionService = new LanguageDetectionService();
-  const problemScanService = new ProblemScanService(localeService);
-  const treeProvider = new ProblemTreeProvider();
-  const previewProvider = new ImportPreviewContentProvider();
-  const pendingImport: { current?: PendingImportSession } = {};
-  const diagnostics = vscode.languages.createDiagnosticCollection('i18nWorkflow');
-  const refreshWorkspaceView = async (): Promise<void> => {
-    const problems = await problemScanService.scanWorkspace();
-    updateDiagnostics(diagnostics, problems);
-    treeProvider.setProblems(problems);
-    const localeDirectory = localeService.getLocaleDirectorySummary();
-    treeProvider.setLocaleDirectory(localeDirectory);
-    treeProvider.setLocaleFiles(await localeService.getLocaleFileSummaries());
-    if (!localeDirectory.exists) {
-      void vscode.window.showWarningMessage(
-        `Locale directory "${localeDirectory.relativePath}" does not exist in the current workspace.`
-      );
+  try {
+    const localeService = new LocaleService();
+    const codeReplaceService = new CodeReplaceService();
+    const languageDetectionService = new LanguageDetectionService();
+    const problemScanService = new ProblemScanService(localeService);
+    const treeProvider = new ProblemTreeProvider();
+    const previewProvider = new ImportPreviewContentProvider();
+    const pendingImport: { current?: PendingImportSession } = {};
+    const diagnostics = vscode.languages.createDiagnosticCollection('i18nWorkflow');
+    const refreshWorkspaceView = async (): Promise<void> => {
+      const problems = await problemScanService.scanWorkspace();
+      updateDiagnostics(diagnostics, problems);
+      treeProvider.setProblems(problems);
+      const localeDirectory = localeService.getLocaleDirectorySummary();
+      treeProvider.setLocaleDirectory(localeDirectory);
+      treeProvider.setLocaleFiles(await localeService.getLocaleFileSummaries());
+      if (!localeDirectory.exists) {
+        void vscode.window.showWarningMessage(
+          `Locale directory "${localeDirectory.relativePath}" does not exist in the current workspace.`
+        );
+      }
+    };
+
+    context.subscriptions.push(
+      diagnostics,
+      vscode.workspace.registerTextDocumentContentProvider('i18n-preview', previewProvider),
+      vscode.window.registerTreeDataProvider('i18nWorkflow.workspace', treeProvider),
+      vscode.languages.registerCodeActionsProvider(
+        [
+          { language: 'typescriptreact' },
+          { language: 'javascriptreact' },
+          { language: 'typescript' },
+          { language: 'javascript' },
+          { language: 'vue' }
+        ],
+        new I18nCodeActionProvider(),
+        { providedCodeActionKinds: I18nCodeActionProvider.providedCodeActionKinds }
+      ),
+      vscode.commands.registerCommand(
+        'i18nWorkflow.extractText',
+        createExtractCommand(localeService, codeReplaceService, languageDetectionService)
+      ),
+      vscode.commands.registerCommand('i18nWorkflow.extractTextAtRange', createExtractAtRangeCommand()),
+      vscode.commands.registerCommand('i18nWorkflow.exportLocales', createExportLocalesCommand(localeService)),
+      vscode.commands.registerCommand(
+        'i18nWorkflow.importLocale',
+        createImportLocaleCommand(localeService, previewProvider, pendingImport)
+      ),
+      vscode.commands.registerCommand(
+        'i18nWorkflow.applyPendingImport',
+        createApplyPendingImportCommand(localeService, previewProvider, pendingImport)
+      ),
+      vscode.commands.registerCommand(
+        'i18nWorkflow.discardPendingImport',
+        createDiscardPendingImportCommand(previewProvider, pendingImport)
+      ),
+      vscode.commands.registerCommand('i18nWorkflow.setDefaultLanguage', createSetDefaultLanguageCommand(refreshWorkspaceView)),
+      vscode.commands.registerCommand('i18nWorkflow.setLocaleDirectory', createSetLocaleDirectoryCommand(refreshWorkspaceView)),
+      vscode.commands.registerCommand('i18nWorkflow.scanWorkspace', async () => {
+        await localeService.syncLocaleStructure();
+        const command = createScanCommand(problemScanService, treeProvider);
+        await command();
+        await refreshWorkspaceView();
+      }),
+      vscode.commands.registerCommand('i18nWorkflow.refreshProblems', refreshWorkspaceView),
+      vscode.commands.registerCommand('i18nWorkflow.openProblem', openProblem),
+      vscode.commands.registerCommand('i18nWorkflow.openLocaleFile', openLocaleFile)
+    );
+
+    const watcher = createLocaleWatcher(localeService);
+    if (watcher) {
+      context.subscriptions.push(watcher);
     }
-  };
 
-  context.subscriptions.push(
-    diagnostics,
-    vscode.workspace.registerTextDocumentContentProvider('i18n-preview', previewProvider),
-    vscode.window.registerTreeDataProvider('i18nWorkflow.workspace', treeProvider),
-    vscode.languages.registerCodeActionsProvider(
-      [
-        { language: 'typescriptreact' },
-        { language: 'javascriptreact' },
-        { language: 'typescript' },
-        { language: 'javascript' },
-        { language: 'vue' }
-      ],
-      new I18nCodeActionProvider(),
-      { providedCodeActionKinds: I18nCodeActionProvider.providedCodeActionKinds }
-    ),
-    vscode.commands.registerCommand(
-      'i18nWorkflow.extractText',
-      createExtractCommand(localeService, codeReplaceService, languageDetectionService)
-    ),
-    vscode.commands.registerCommand('i18nWorkflow.extractTextAtRange', createExtractAtRangeCommand()),
-    vscode.commands.registerCommand('i18nWorkflow.exportLocales', createExportLocalesCommand(localeService)),
-    vscode.commands.registerCommand(
-      'i18nWorkflow.importLocale',
-      createImportLocaleCommand(localeService, previewProvider, pendingImport)
-    ),
-    vscode.commands.registerCommand(
-      'i18nWorkflow.applyPendingImport',
-      createApplyPendingImportCommand(localeService, previewProvider, pendingImport)
-    ),
-    vscode.commands.registerCommand(
-      'i18nWorkflow.discardPendingImport',
-      createDiscardPendingImportCommand(previewProvider, pendingImport)
-    ),
-    vscode.commands.registerCommand('i18nWorkflow.setDefaultLanguage', createSetDefaultLanguageCommand(refreshWorkspaceView)),
-    vscode.commands.registerCommand('i18nWorkflow.setLocaleDirectory', createSetLocaleDirectoryCommand(refreshWorkspaceView)),
-    vscode.commands.registerCommand('i18nWorkflow.scanWorkspace', async () => {
-      await localeService.syncLocaleStructure();
-      const command = createScanCommand(problemScanService, treeProvider);
-      await command();
-      await refreshWorkspaceView();
-    }),
-    vscode.commands.registerCommand('i18nWorkflow.refreshProblems', refreshWorkspaceView),
-    vscode.commands.registerCommand('i18nWorkflow.openProblem', openProblem),
-    vscode.commands.registerCommand('i18nWorkflow.openLocaleFile', openLocaleFile)
-  );
-
-  const watcher = createLocaleWatcher(localeService);
-  if (watcher) {
-    context.subscriptions.push(watcher);
+    void refreshWorkspaceView();
+  } catch (error) {
+    const message = error instanceof Error ? error.stack ?? error.message : String(error);
+    void vscode.window.showErrorMessage(`I18n Workflow activation failed: ${message}`);
+    console.error('I18n Workflow activation failed:', error);
   }
-
-  void refreshWorkspaceView();
 }
 
 export function deactivate(): void {}

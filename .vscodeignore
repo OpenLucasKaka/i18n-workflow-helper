@@ -3,6 +3,5 @@ out/**/*.map
 src/**
 .vscode/**
 scripts/**
-node_modules/**
 .gitignore
 tsconfig.json

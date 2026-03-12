@@ -2,7 +2,7 @@
   "name": "i18n-workflow-helper",
   "displayName": "i18n Workflow Helper",
   "description": "Extract text, scan i18n issues, preview locale diffs, and manage locale files for JS/TS/React/Vue projects.",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "publisher": "local",
   "preview": true,
   "license": "MIT",
@@ -33,6 +33,7 @@
     "jsonc"
   ],
   "activationEvents": [
+    "onStartupFinished",
     "onCommand:i18nWorkflow.extractText",
     "onCommand:i18nWorkflow.extractTextAtRange",
     "onCommand:i18nWorkflow.exportLocales",
@@ -160,22 +161,22 @@
     }
   },
   "scripts": {
-    "build": "npm run clean && npm run typecheck && node scripts/build.mjs",
-    "watch": "node scripts/build.mjs --watch",
+    "build": "tsc -p .",
+    "watch": "tsc -w -p .",
     "typecheck": "tsc -p . --noEmit",
-    "clean": "rm -rf out",
     "prepackage": "npm run build",
-    "package:vsix": "vsce package"
+    "package:vsix": "npm run build && vsce package"
   },
   "devDependencies": {
     "@types/node": "^20.16.10",
     "@types/vscode": "^1.95.0",
     "@vscode/vsce": "^3.7.1",
+    "esbuild": "^0.27.3"
+  },
+  "dependencies": {
     "@vue/compiler-dom": "^3.5.30",
     "@vue/compiler-sfc": "^3.5.30",
-    "esbuild": "^0.27.3",
     "jsonc-parser": "^3.3.1",
     "typescript": "^5.6.3"
-  },
-  "dependencies": {}
+  }
 }

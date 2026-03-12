@@ -25,7 +25,7 @@
 ## 安装
 
 ```bash
-code --install-extension i18n-workflow-helper-0.1.0.vsix
+code --install-extension i18n-workflow-helper-0.1.2.vsix
 ```
 
 开发模式：
@@ -93,6 +93,14 @@ npm run build
 - 插件市场图标通过 `package.json` 顶层 `icon` 字段配置。
 
 ## 版本说明
+
+### 0.1.2
+
+修复 VSIX 运行时打包问题，安装后命令不再出现 `not found`。
+
+### 0.1.1
+
+修复打包与激活稳定性问题，并将视图调整到 Explorer。
 
 ### 0.1.0
 
