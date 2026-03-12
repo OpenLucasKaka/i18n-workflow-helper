@@ -46,7 +46,7 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     diagnostics,
     vscode.workspace.registerTextDocumentContentProvider('i18n-preview', previewProvider),
-    vscode.window.registerTreeDataProvider('i18nWorkflow.problems', treeProvider),
+    vscode.window.registerTreeDataProvider('i18nWorkflow.workspace', treeProvider),
     vscode.languages.registerCodeActionsProvider(
       [
         { language: 'typescriptreact' },

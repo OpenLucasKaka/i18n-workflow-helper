@@ -7,77 +7,35 @@ I18n Workflow Helper is a VS Code extension for JavaScript / TypeScript / React 
 It focuses on i18n workflow management instead of translation itself:
 
 - extract hardcoded text into locale keys
-- scan i18n problems in code and locale files
+- scan i18n issues in code and locale files
 - preview locale import changes with diff before applying them
 - manage locale directories and language files inside VS Code
 
-## What It Solves
+## Features
 
-- Hardcoded copy left in code
-- Inconsistent i18n key naming
-- Missing keys, unused keys, and locale mismatches
-- Locale files drifting out of sync
-- Too much switching between code and locale files
-- Hard onboarding for projects that already have i18n
-
-## Main Features
-
-### Extract Text
-
-- Select text inside TSX
-- Extract it into an i18n key
-- Replace code with `t('your.key')`
-- Write locale values automatically
-- Sync locale structure to other languages
-- Detect text language and warn when it does not match the current default language
-
-### Scan I18n Issues
-
-Run `i18n: Scan Workspace` to detect:
-
-- hardcoded text
-- missing locale keys
-- unused locale keys
-- locale structure mismatches
-
-Results are shown in the sidebar and support click-to-jump for code issues.
-
-### Import / Export Locale Files
-
+- Extract selected text into an i18n key and replace code with `t('key')`
+- Write locale values automatically and sync empty placeholders to other languages
+- Detect hardcoded text, missing keys, unused keys, and locale mismatches
+- Import `json` / `jsonc` locale files with diff preview before apply
 - Export one language or all configured languages as JSON
-- Import `json` / `jsonc` locale files by language
-- Open a diff preview before applying import changes
-- Apply or discard the pending import explicitly
-
-### Locale Management
-
 - Set the default language from configured languages
-- Set the locale directory from a folder picker
-- Show the active locale directory and locale files in the sidebar
-
-## Supported Scope
-
-- JavaScript / TypeScript / React / Vue
-- locale files: `json` / `jsonc`
-- translation function pattern: `t('key')`
-- Vue SFC support for `template`, `script`, and `script setup`
+- Set the locale directory for existing i18n projects
+- Show scan results and locale files in the Explorer view
 
 ## Installation
-
-### Install VSIX Locally
 
 ```bash
 code --install-extension i18n-workflow-helper-0.1.0.vsix
 ```
 
-### Run In Development Mode
+For development:
 
 ```bash
 npm install
 npm run build
 ```
 
-Then open this project in VS Code and press `F5` to launch the Extension Development Host.
+Then open this project in VS Code and press `F5`.
 
 ## Configuration
 
@@ -87,14 +45,12 @@ Then open this project in VS Code and press `F5` to launch the Extension Develop
   "i18nWorkflow.defaultLanguage": "en",
   "i18nWorkflow.languages": ["en", "zh-CN"],
   "i18nWorkflow.functionName": "t",
-  "i18nWorkflow.include": ["src/**/*.tsx"],
+  "i18nWorkflow.include": ["src/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,vue}"],
   "i18nWorkflow.exclude": ["**/node_modules/**", "**/dist/**"]
 }
 ```
 
-## Recommended Setup
-
-Instead of editing settings manually, use these commands first:
+Recommended commands:
 
 - `i18n: Set Default Language`
 - `i18n: Set Locale Directory`
@@ -110,67 +66,34 @@ Instead of editing settings manually, use these commands first:
 - `i18n: Set Default Language`
 - `i18n: Set Locale Directory`
 
-## Quick Usage
+## Quick Start
 
-### Extract Text
+1. Set the locale directory and default language.
+2. Select text in a supported source file and run `i18n: Extract Selected Text`.
+3. Run `i18n: Scan Workspace` to inspect problems in the Explorer view.
+4. Import locale files with `i18n: Import Locale JSON File` and review the diff before applying.
 
-1. Open a `.tsx` file
-2. Select a string literal or JSX text
-3. Run `i18n: Extract Selected Text`
-4. Enter the key
+Quick fix is also supported for hardcoded text:
 
-### Scan Issues
+- click the lightbulb
+- or press `Cmd + .`
+- choose `Extract to i18n key`
 
-1. Run `i18n: Scan Workspace`
-2. Open the `i18n` activity bar view
-3. Inspect `Problems` and `Locale Files`
+## Supported Scope
 
-### Import With Diff
-
-1. Run `i18n: Import Locale JSON File`
-2. Choose the target language
-3. Choose the import file
-4. Review the diff preview
-5. Apply with `i18n: Apply Pending Import`
-
-## Demo Flow
-
-Recommended flow for a short product demo video:
-
-1. Set locale directory
-2. Set default language
-3. Extract text from TSX
-4. Show locale update
-5. Run workspace scan
-6. Open a problem from the sidebar
-7. Import a locale file and show the diff preview
+- source files: `js`, `jsx`, `ts`, `tsx`, `mjs`, `cjs`, `mts`, `cts`, `vue`
+- locale files: `json`, `jsonc`
+- translation call pattern: `t('key')`
+- Vue SFC support: `template`, `script`, `script setup`
 
 ## Notes
 
-- Supports `js`, `jsx`, `ts`, `tsx`, `mjs`, `cjs`, `mts`, `cts`, and `vue`
-- No automatic translation
-- Complex AST cases are not fully covered yet
-
-## Marketplace Icon
-
-The Marketplace icon is configured by the top-level `icon` field in `package.json`, for example:
-
-```json
-{
-  "icon": "media/icon.png"
-}
-```
-
-Important:
-
-- use a PNG file, not SVG
-- keep it in the repository, usually under `media/`
-- recommended size: `128x128` or larger
-
-This is different from the Activity Bar icon used by the tree view container.
+- The extension does not translate text automatically.
+- Complex AST cases are not fully covered yet.
+- Marketplace icon is configured with the top-level `icon` field in `package.json`.
 
 ## Release Notes
 
 ### 0.1.0
 
-Initial release with text extraction, workspace scan, locale import diff preview, locale export, default language setup, and locale directory setup.
+Initial release with text extraction, workspace scan, locale import diff preview, locale export, default language setup, locale directory setup, and Vue support.

@@ -6,6 +6,7 @@
   "publisher": "local",
   "preview": true,
   "license": "MIT",
+  "icon": "media/logo.png",
   "homepage": "https://github.com/OpenLucasKaka/i18n-workflow-helper",
   "repository": {
     "type": "git",
@@ -41,7 +42,7 @@
     "onCommand:i18nWorkflow.setDefaultLanguage",
     "onCommand:i18nWorkflow.setLocaleDirectory",
     "onCommand:i18nWorkflow.scanWorkspace",
-    "onView:i18nWorkflow.problems"
+    "onView:i18nWorkflow.workspace"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -95,20 +96,11 @@
         "title": "i18n: Open Locale File"
       }
     ],
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "i18nWorkflow",
-          "title": "i18n",
-          "icon": "media/globe.svg"
-        }
-      ]
-    },
     "views": {
-      "i18nWorkflow": [
+      "explorer": [
         {
-          "id": "i18nWorkflow.problems",
-          "name": "Workspace"
+          "id": "i18nWorkflow.workspace",
+          "name": "I18n Workflow"
         }
       ]
     },
