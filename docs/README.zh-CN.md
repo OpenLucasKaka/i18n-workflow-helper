@@ -2,7 +2,7 @@
 
 English README file: `README.md`
 
-一个面向 React / TSX 项目的 VS Code i18n 工作流插件。
+一个面向 JavaScript / TypeScript / React / Vue 项目的 VS Code i18n 工作流插件。
 
 它的重点不是翻译，而是解决开发过程中最常见的 i18n 管理问题。
 
@@ -52,9 +52,10 @@ English README file: `README.md`
 
 ## 当前支持范围
 
-- React / TSX
+- JavaScript / TypeScript / React / Vue
 - locale 文件：`json` / `jsonc`
 - i18n 函数调用形式：`t('key')`
+- Vue SFC 支持 `template`、`script`、`script setup`
 
 ## 安装
 
@@ -214,7 +215,7 @@ npm run build
 
 ## 已知限制
 
-- 当前版本只支持 React / TSX
+- 当前版本支持 `js`、`jsx`、`ts`、`tsx`、`mjs`、`cjs`、`mts`、`cts`、`vue`
 - 当前主要支持 `t('key')`
 - 不做自动翻译
 - 暂未覆盖所有复杂 AST 场景

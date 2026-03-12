@@ -9,7 +9,7 @@ export function getConfig(): I18nConfig {
     defaultLanguage: config.get<string>('defaultLanguage', 'en'),
     languages: config.get<string[]>('languages', ['en', 'zh-CN']),
     functionName: config.get<string>('functionName', 't'),
-    include: config.get<string[]>('include', ['src/**/*.tsx']),
+    include: config.get<string[]>('include', ['src/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,vue}']),
     exclude: config.get<string[]>('exclude', ['**/node_modules/**', '**/dist/**'])
   };
 }

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { getConfig, updateDefaultLanguage } from '../config';
+import { supportsExtraction } from '../languageSupport';
 import { CodeReplaceService } from '../services/codeReplaceService';
 import { LanguageDetectionService } from '../services/languageDetectionService';
 import { LocaleService } from '../services/localeService';
@@ -13,6 +14,13 @@ export function createExtractCommand(
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
       void vscode.window.showWarningMessage('No active editor.');
+      return;
+    }
+
+    if (!supportsExtraction(editor.document)) {
+      void vscode.window.showWarningMessage(
+        'Current file type is not supported yet. Supported: js, jsx, ts, tsx, mjs, cjs, mts, cts.'
+      );
       return;
     }
 

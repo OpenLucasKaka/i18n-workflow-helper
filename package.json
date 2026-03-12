@@ -1,11 +1,19 @@
 {
   "name": "i18n-workflow-helper",
   "displayName": "i18n Workflow Helper",
-  "description": "Extract text, scan i18n issues, preview locale diffs, and manage locale files for React TSX projects.",
+  "description": "Extract text, scan i18n issues, preview locale diffs, and manage locale files for JS/TS/React/Vue projects.",
   "version": "0.1.0",
   "publisher": "local",
   "preview": true,
   "license": "MIT",
+  "homepage": "https://github.com/OpenLucasKaka/i18n-workflow-helper",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OpenLucasKaka/i18n-workflow-helper.git"
+  },
+  "bugs": {
+    "url": "https://github.com/OpenLucasKaka/i18n-workflow-helper/issues"
+  },
   "engines": {
     "vscode": "^1.95.0"
   },
@@ -16,6 +24,9 @@
     "i18n",
     "localization",
     "react",
+    "vue",
+    "javascript",
+    "typescript",
     "tsx",
     "json",
     "jsonc"
@@ -135,12 +146,12 @@
         "i18nWorkflow.include": {
           "type": "array",
           "default": [
-            "src/**/*.tsx"
+            "src/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,vue}"
           ],
           "items": {
             "type": "string"
           },
-          "description": "Glob patterns included in scanning."
+          "description": "Glob patterns included in scanning. Default support covers js/jsx/ts/tsx/mjs/cjs/mts/cts/vue."
         },
         "i18nWorkflow.exclude": {
           "type": "array",
@@ -157,8 +168,10 @@
     }
   },
   "scripts": {
-    "build": "tsc -p .",
-    "watch": "tsc -w -p .",
+    "build": "npm run clean && npm run typecheck && node scripts/build.mjs",
+    "watch": "node scripts/build.mjs --watch",
+    "typecheck": "tsc -p . --noEmit",
+    "clean": "rm -rf out",
     "prepackage": "npm run build",
     "package:vsix": "vsce package"
   },
@@ -166,9 +179,11 @@
     "@types/node": "^20.16.10",
     "@types/vscode": "^1.95.0",
     "@vscode/vsce": "^3.7.1",
+    "@vue/compiler-dom": "^3.5.30",
+    "@vue/compiler-sfc": "^3.5.30",
+    "esbuild": "^0.27.3",
+    "jsonc-parser": "^3.3.1",
     "typescript": "^5.6.3"
   },
-  "dependencies": {
-    "jsonc-parser": "^3.3.1"
-  }
+  "dependencies": {}
 }

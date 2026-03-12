@@ -1,8 +1,10 @@
 import * as ts from 'typescript';
 import * as vscode from 'vscode';
 import { getConfig } from '../config';
+import { getScriptKind } from '../languageSupport';
 import { ScanProblem } from '../types';
 import { isNaturalLanguage, stripQuotes } from '../utils';
+import { scanVueDocument } from '../vueSupport';
 import { LocaleService } from './localeService';
 
 export class ProblemScanService {
@@ -74,7 +76,23 @@ export class ProblemScanService {
     usedKeys: Map<string, { uri: vscode.Uri; range: vscode.Range }[]>,
     defaultLocale: Record<string, string>
   ): void {
-    const sourceFile = ts.createSourceFile(document.fileName, document.getText(), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    if (document.fileName.endsWith('.vue')) {
+      scanVueDocument(document, getConfig().functionName, defaultLocale, usedKeys, problems);
+      return;
+    }
+
+    const scriptKind = getScriptKind(document);
+    if (scriptKind === ts.ScriptKind.Unknown) {
+      return;
+    }
+
+    const sourceFile = ts.createSourceFile(
+      document.fileName,
+      document.getText(),
+      ts.ScriptTarget.Latest,
+      true,
+      scriptKind
+    );
     const functionName = getConfig().functionName;
 
     const visit = (node: ts.Node): void => {

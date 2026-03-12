@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { supportsCodeActions } from '../languageSupport';
 import { CodeReplaceService } from '../services/codeReplaceService';
 
 export class I18nCodeActionProvider implements vscode.CodeActionProvider {
@@ -10,6 +11,10 @@ export class I18nCodeActionProvider implements vscode.CodeActionProvider {
     range: vscode.Range,
     context: vscode.CodeActionContext
   ): vscode.CodeAction[] {
+    if (!supportsCodeActions(document.languageId)) {
+      return [];
+    }
+
     const selection = new vscode.Selection(range.start, range.end);
     const canExtract = this.codeReplaceService.getExtractTarget(document, selection, '__preview__') !== null;
     const hasHardcodedProblem = context.diagnostics.some(

@@ -2,7 +2,7 @@
 
 [中文文档](./docs/README.zh-CN.md)
 
-I18n Workflow Helper is a VS Code extension for React / TSX projects.
+I18n Workflow Helper is a VS Code extension for JavaScript / TypeScript / React / Vue projects.
 
 It focuses on i18n workflow management instead of translation itself:
 
@@ -57,9 +57,10 @@ Results are shown in the sidebar and support click-to-jump for code issues.
 
 ## Supported Scope
 
-- React / TSX
+- JavaScript / TypeScript / React / Vue
 - locale files: `json` / `jsonc`
 - translation function pattern: `t('key')`
+- Vue SFC support for `template`, `script`, and `script setup`
 
 ## Installation
 
@@ -146,7 +147,7 @@ Recommended flow for a short product demo video:
 
 ## Notes
 
-- React / TSX only in `0.1.0`
+- Supports `js`, `jsx`, `ts`, `tsx`, `mjs`, `cjs`, `mts`, `cts`, and `vue`
 - No automatic translation
 - Complex AST cases are not fully covered yet
 

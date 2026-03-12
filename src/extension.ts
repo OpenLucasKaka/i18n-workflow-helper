@@ -48,7 +48,13 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.workspace.registerTextDocumentContentProvider('i18n-preview', previewProvider),
     vscode.window.registerTreeDataProvider('i18nWorkflow.problems', treeProvider),
     vscode.languages.registerCodeActionsProvider(
-      [{ language: 'typescriptreact' }, { language: 'javascriptreact' }],
+      [
+        { language: 'typescriptreact' },
+        { language: 'javascriptreact' },
+        { language: 'typescript' },
+        { language: 'javascript' },
+        { language: 'vue' }
+      ],
       new I18nCodeActionProvider(),
       { providedCodeActionKinds: I18nCodeActionProvider.providedCodeActionKinds }
     ),

@@ -1,12 +1,29 @@
 import * as ts from 'typescript';
 import * as vscode from 'vscode';
 import { getConfig } from '../config';
+import { getScriptKind } from '../languageSupport';
 import { ExtractTarget } from '../types';
 import { stripQuotes } from '../utils';
+import { getVueExtractTarget } from '../vueSupport';
 
 export class CodeReplaceService {
   getExtractTarget(document: vscode.TextDocument, selection: vscode.Selection, key: string): ExtractTarget | null {
-    const sourceFile = ts.createSourceFile(document.fileName, document.getText(), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    if (document.fileName.endsWith('.vue')) {
+      return getVueExtractTarget(document, selection, key, getConfig().functionName);
+    }
+
+    const scriptKind = getScriptKind(document);
+    if (scriptKind === ts.ScriptKind.Unknown) {
+      return null;
+    }
+
+    const sourceFile = ts.createSourceFile(
+      document.fileName,
+      document.getText(),
+      ts.ScriptTarget.Latest,
+      true,
+      scriptKind
+    );
     const start = document.offsetAt(selection.start);
     const end = document.offsetAt(selection.end);
     const functionName = getConfig().functionName;
