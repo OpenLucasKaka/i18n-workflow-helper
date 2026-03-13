@@ -46,10 +46,7 @@ async function updateWorkspaceSetting(key: string, value: string, resource?: vsc
     formattingOptions: { insertSpaces: true, tabSize: 2 }
   });
   const updated = applyEdits(raw, edits);
-  const formatted = format(updated, undefined, { insertSpaces: true, tabSize: 2 }).reduce(
-    (text, edit) => applyEdits(text, [edit]),
-    updated
-  );
+  const formatted = applyEdits(updated, format(updated, undefined, { insertSpaces: true, tabSize: 2 }));
 
   await vscode.workspace.fs.writeFile(settingsFile, Buffer.from(formatted, 'utf8'));
 
