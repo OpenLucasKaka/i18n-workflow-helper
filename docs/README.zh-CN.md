@@ -30,7 +30,7 @@
 ## 安装
 
 ```bash
-code --install-extension i18n-workflow-helper-0.1.2.vsix
+code --install-extension i18n-workflow-helper-0.1.3.vsix
 ```
 
 开发模式：
@@ -98,6 +98,10 @@ npm run build
 - 插件市场图标通过 `package.json` 顶层 `icon` 字段配置。
 
 ## 版本说明
+
+### 0.1.3
+
+缩小 VSIX 包体，并修复提取文案时更新工作区设置导致的 `Overlapping edit` 错误。
 
 ### 0.1.2
 

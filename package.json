@@ -2,7 +2,7 @@
   "name": "i18n-workflow-helper",
   "displayName": "i18n Workflow Helper",
   "description": "Extract text, scan i18n issues, preview locale diffs, and manage locale files for JS/TS/React/Vue projects.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "publisher": "12138",
   "preview": true,
   "license": "MIT",
