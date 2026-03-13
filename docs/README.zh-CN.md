@@ -2,6 +2,11 @@
 
 [English README](../README.md)
 
+<p align="center">
+  <img src="../media/logo.png" alt="I18n Workflow Helper Logo" width="160" />
+</p>
+
+
 一个面向 JavaScript / TypeScript / React / Vue 项目的 VS Code i18n 工作流插件。
 
 它的重点不是翻译，而是解决开发过程里的 i18n 管理问题：

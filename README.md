@@ -2,6 +2,10 @@
 
 [中文文档](./docs/README.zh-CN.md)
 
+<p align="center">
+  <img src="./media/logo.png" alt="I18n Workflow Helper Logo" width="160" />
+</p>
+
 I18n Workflow Helper is a VS Code extension for JavaScript / TypeScript / React / Vue projects.
 
 It focuses on i18n workflow management instead of translation itself:
