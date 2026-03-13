@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3
+
+- Reduce VSIX size from 8.0 MB to 2.53 MB by trimming non-runtime files and compressing the logo asset.
+- Fix `Extract Selected Text` failing with `Overlapping edit` when updating workspace settings.
+
 ## 0.1.2
 
 - Include `typescript` in runtime dependencies so the extension can activate after VSIX installation.
