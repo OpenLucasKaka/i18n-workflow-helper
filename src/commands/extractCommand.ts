@@ -45,7 +45,7 @@ export function createExtractCommand(
       return;
     }
 
-    const config = getConfig();
+    const config = getConfig(editor.document.uri);
     const detectedLanguage = languageDetectionService.detectLanguage(target.text, config.languages);
     let sourceLanguage = config.defaultLanguage;
 
@@ -71,7 +71,7 @@ export function createExtractCommand(
       }
     }
 
-    const keyUsages = await localeService.getKeyUsages(key);
+    const keyUsages = await localeService.getKeyUsages(key, editor.document.uri);
     const conflict = keyUsages.find(
       (entry) => entry.value !== undefined && entry.value !== '' && entry.value !== target.text
     );
@@ -87,7 +87,7 @@ export function createExtractCommand(
       }
     }
 
-    await localeService.ensureKey(key, target.text, sourceLanguage);
+    await localeService.ensureKey(key, target.text, sourceLanguage, editor.document.uri);
     const replaced = await codeReplaceService.replaceSelection(editor.document, target);
     if (replaced) {
       void vscode.window.showInformationMessage(

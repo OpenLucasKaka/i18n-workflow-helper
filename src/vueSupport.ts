@@ -172,6 +172,39 @@ function scanVueScriptBlock(
     return;
   }
 
+  const ignoredPropertyKeys = new Set([
+    'id',
+    'key',
+    'className',
+    'path',
+    'url',
+    'href',
+    'testId',
+    'name',
+    'type',
+    'variant',
+    'icon',
+    'size',
+    'status',
+    'method',
+    'mode',
+    'to',
+    'from'
+  ]);
+  const ignoredCallNames = new Set([
+    'require',
+    'console.log',
+    'console.info',
+    'console.warn',
+    'console.error',
+    'logger.debug',
+    'logger.info',
+    'logger.warn',
+    'logger.error',
+    'debug',
+    'assert',
+    'invariant'
+  ]);
   const blockOffset = block.loc.start.offset;
   const sourceFile = createEmbeddedSourceFile(document.fileName, block.content, getBlockScriptKind(block));
   const visit = (node: ts.Node): void => {
@@ -202,9 +235,42 @@ function scanVueScriptBlock(
         ts.forEachChild(node, visit);
         return;
       }
+      if (ts.isTypeNode(parent) || ts.isLiteralTypeNode(parent)) {
+        ts.forEachChild(node, visit);
+        return;
+      }
       if (ts.isCallExpression(parent) && ts.isIdentifier(parent.expression) && parent.expression.text === functionName) {
         ts.forEachChild(node, visit);
         return;
+      }
+      if (ts.isPropertyAssignment(parent) && ts.isIdentifier(parent.name) && ignoredPropertyKeys.has(parent.name.text)) {
+        ts.forEachChild(node, visit);
+        return;
+      }
+      const callExpression = ts.isCallExpression(parent)
+        ? parent
+        : ts.isNewExpression(parent)
+          ? parent
+          : ts.isPropertyAccessExpression(parent) && ts.isCallExpression(parent.parent)
+            ? parent.parent
+            : undefined;
+      if (callExpression) {
+        const callName = getCallName(callExpression.expression);
+        if (callName && ignoredCallNames.has(callName)) {
+          ts.forEachChild(node, visit);
+          return;
+        }
+        if (ts.isNewExpression(callExpression) && callName && ['Error', 'TypeError', 'RangeError'].includes(callName)) {
+          ts.forEachChild(node, visit);
+          return;
+        }
+      }
+      if (ts.isVariableDeclaration(parent) && ts.isIdentifier(parent.name)) {
+        const variableName = parent.name.text;
+        if (/(path|url|href|route|variant|type|class|icon|mode|status|test)/i.test(variableName)) {
+          ts.forEachChild(node, visit);
+          return;
+        }
       }
 
       const text = stripQuotes(node.getText(sourceFile));
@@ -223,6 +289,17 @@ function scanVueScriptBlock(
   };
 
   visit(sourceFile);
+}
+
+function getCallName(expression: ts.Expression): string | undefined {
+  if (ts.isIdentifier(expression)) {
+    return expression.text;
+  }
+  if (ts.isPropertyAccessExpression(expression)) {
+    const left = getCallName(expression.expression);
+    return left ? `${left}.${expression.name.text}` : expression.name.text;
+  }
+  return undefined;
 }
 
 function scanVueTemplate(

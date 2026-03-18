@@ -25,6 +25,15 @@ export interface ScanProblem {
   language?: string;
 }
 
+export interface ScanSummary {
+  workspaceRoots: string[];
+  includePatterns: string[];
+  excludePatterns: string[];
+  scannedFiles: string[];
+  skippedFiles: string[];
+  unmatchedFiles: string[];
+}
+
 export interface ExtractTarget {
   range: vscode.Range;
   text: string;

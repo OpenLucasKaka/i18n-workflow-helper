@@ -2,29 +2,75 @@ import * as ts from 'typescript';
 import * as vscode from 'vscode';
 import { getConfig } from '../config';
 import { getScriptKind } from '../languageSupport';
-import { ScanProblem } from '../types';
-import { isNaturalLanguage, stripQuotes } from '../utils';
+import { ScanProblem, ScanSummary } from '../types';
+import { expandBraceGlob, globToRegExp, isNaturalLanguage, stripQuotes } from '../utils';
 import { scanVueDocument } from '../vueSupport';
 import { LocaleService } from './localeService';
 
 export class ProblemScanService {
+  private lastScanSummary: ScanSummary = {
+    workspaceRoots: [],
+    includePatterns: [],
+    excludePatterns: [],
+    scannedFiles: [],
+    skippedFiles: [],
+    unmatchedFiles: []
+  };
+
   constructor(private readonly localeService: LocaleService) {}
 
   async scanWorkspace(): Promise<ScanProblem[]> {
     const config = getConfig();
+    const workspaceRoots = (vscode.workspace.workspaceFolders ?? []).map((folder) => folder.uri.fsPath);
     const locales = await this.localeService.readAllLocales();
     const defaultLocale = locales.get(config.defaultLanguage) ?? {};
     const usedKeys = new Map<string, { uri: vscode.Uri; range: vscode.Range }[]>();
     const problems: ScanProblem[] = [];
+    const includePatterns = config.include.flatMap((pattern) => expandBraceGlob(pattern));
+    const excludePatterns = config.exclude.flatMap((pattern) => expandBraceGlob(pattern));
+    const includeMatchers = includePatterns.map((pattern) => globToRegExp(pattern));
+    const excludeMatchers = excludePatterns.map((pattern) => globToRegExp(pattern));
+    const folderUris = vscode.workspace.workspaceFolders?.map((folder) => folder.uri) ?? [];
+    const scannedFiles: string[] = [];
+    const skippedFiles: string[] = [];
+    const unmatchedFiles: string[] = [];
+    const scannedUris: vscode.Uri[] = [];
 
-    for (const include of config.include) {
-      const excludeGlob = config.exclude.length ? `{${config.exclude.join(',')}}` : undefined;
-      const files = await vscode.workspace.findFiles(include, excludeGlob);
-      for (const file of files) {
+    if (folderUris.length === 0) {
+      const activeDocument = vscode.window.activeTextEditor?.document;
+      if (activeDocument) {
+        const relativePath = activeDocument.fileName.replace(/\\/g, '/');
+        scannedFiles.push(relativePath);
+        scannedUris.push(activeDocument.uri);
+        this.scanDocument(activeDocument, problems, usedKeys, defaultLocale);
+      }
+    } else {
+      for (const folderUri of folderUris) {
+        await this.collectFiles(
+          folderUri,
+          folderUri,
+          includeMatchers,
+          excludeMatchers,
+          scannedUris,
+          scannedFiles,
+          skippedFiles,
+          unmatchedFiles
+        );
+      }
+      for (const file of scannedUris) {
         const document = await vscode.workspace.openTextDocument(file);
         this.scanDocument(document, problems, usedKeys, defaultLocale);
       }
     }
+
+    this.lastScanSummary = {
+      includePatterns,
+      workspaceRoots,
+      excludePatterns,
+      scannedFiles,
+      skippedFiles,
+      unmatchedFiles
+    };
 
     for (const [key, value] of Object.entries(defaultLocale)) {
       if (!usedKeys.has(key)) {
@@ -70,6 +116,99 @@ export class ProblemScanService {
     return problems;
   }
 
+  async scanDocumentInEditor(document: vscode.TextDocument): Promise<ScanProblem[]> {
+    const config = getConfig(document.uri);
+    const locales = await this.localeService.readAllLocales(document.uri);
+    const defaultLocale = locales.get(config.defaultLanguage) ?? {};
+    const usedKeys = new Map<string, { uri: vscode.Uri; range: vscode.Range }[]>();
+    const problems: ScanProblem[] = [];
+    const relativePath = vscode.workspace.asRelativePath(document.uri, false).replace(/\\/g, '/');
+
+    this.scanDocument(document, problems, usedKeys, defaultLocale);
+    this.lastScanSummary = {
+      workspaceRoots: (vscode.workspace.workspaceFolders ?? []).map((folder) => folder.uri.fsPath),
+      includePatterns: ['<current-file>'],
+      excludePatterns: [],
+      scannedFiles: [relativePath],
+      skippedFiles: [],
+      unmatchedFiles: []
+    };
+
+    return problems;
+  }
+
+  getLastScanSummary(): ScanSummary {
+    return this.lastScanSummary;
+  }
+
+  private async collectFiles(
+    rootUri: vscode.Uri,
+    currentUri: vscode.Uri,
+    includeMatchers: RegExp[],
+    excludeMatchers: RegExp[],
+    scannedUris: vscode.Uri[],
+    scannedFiles: string[],
+    skippedFiles: string[],
+    unmatchedFiles: string[]
+  ): Promise<void> {
+    const entries = await vscode.workspace.fs.readDirectory(currentUri);
+    for (const [name, type] of entries) {
+      const childUri = vscode.Uri.joinPath(currentUri, name);
+      const relativePath = this.toWorkspaceRelativePath(rootUri, childUri);
+
+      if (this.matchesAny(excludeMatchers, relativePath)) {
+        skippedFiles.push(relativePath);
+        continue;
+      }
+
+      if (type === vscode.FileType.Directory) {
+        await this.collectFiles(
+          rootUri,
+          childUri,
+          includeMatchers,
+          excludeMatchers,
+          scannedUris,
+          scannedFiles,
+          skippedFiles,
+          unmatchedFiles
+        );
+        continue;
+      }
+
+      if (type === vscode.FileType.File && this.matchesAny(includeMatchers, relativePath)) {
+        scannedUris.push(childUri);
+        scannedFiles.push(relativePath);
+      } else if (type === vscode.FileType.File) {
+        unmatchedFiles.push(relativePath);
+      }
+    }
+  }
+
+  private toWorkspaceRelativePath(rootUri: vscode.Uri, childUri: vscode.Uri): string {
+    const rootPath = rootUri.path.endsWith('/') ? rootUri.path : `${rootUri.path}/`;
+    const childPath = childUri.path;
+    if (childPath.startsWith(rootPath)) {
+      return childPath.slice(rootPath.length).replace(/\\/g, '/');
+    }
+    return vscode.workspace.asRelativePath(childUri, false).replace(/\\/g, '/');
+  }
+
+  private matchesAny(matchers: RegExp[], relativePath: string): boolean {
+    if (matchers.some((matcher) => matcher.test(relativePath))) {
+      return true;
+    }
+
+    const segments = relativePath.split('/');
+    for (let index = 1; index < segments.length; index += 1) {
+      const suffix = segments.slice(index).join('/');
+      if (matchers.some((matcher) => matcher.test(suffix))) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   private scanDocument(
     document: vscode.TextDocument,
     problems: ScanProblem[],
@@ -77,7 +216,7 @@ export class ProblemScanService {
     defaultLocale: Record<string, string>
   ): void {
     if (document.fileName.endsWith('.vue')) {
-      scanVueDocument(document, getConfig().functionName, defaultLocale, usedKeys, problems);
+      scanVueDocument(document, getConfig(document.uri).functionName, defaultLocale, usedKeys, problems);
       return;
     }
 
@@ -93,7 +232,7 @@ export class ProblemScanService {
       true,
       scriptKind
     );
-    const functionName = getConfig().functionName;
+    const functionName = getConfig(document.uri).functionName;
 
     const visit = (node: ts.Node): void => {
       if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === functionName) {
@@ -117,7 +256,10 @@ export class ProblemScanService {
         }
       }
 
-      if ((ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) && this.isHardcodedCandidate(node)) {
+      if (
+        (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) &&
+        this.isHardcodedCandidate(node, functionName)
+      ) {
         const text = stripQuotes(node.getText(sourceFile));
         if (isNaturalLanguage(text)) {
           problems.push({
@@ -146,9 +288,49 @@ export class ProblemScanService {
     visit(sourceFile);
   }
 
-  private isHardcodedCandidate(node: ts.StringLiteral | ts.NoSubstitutionTemplateLiteral): boolean {
+  private isHardcodedCandidate(
+    node: ts.StringLiteral | ts.NoSubstitutionTemplateLiteral,
+    functionName: string
+  ): boolean {
     const parent = node.parent;
+    const ignoredPropertyKeys = new Set([
+      'id',
+      'key',
+      'className',
+      'path',
+      'url',
+      'href',
+      'testId',
+      'name',
+      'type',
+      'variant',
+      'icon',
+      'size',
+      'status',
+      'method',
+      'mode',
+      'to',
+      'from'
+    ]);
+    const ignoredCallNames = new Set([
+      'require',
+      'console.log',
+      'console.info',
+      'console.warn',
+      'console.error',
+      'logger.debug',
+      'logger.info',
+      'logger.warn',
+      'logger.error',
+      'debug',
+      'assert',
+      'invariant'
+    ]);
+
     if (ts.isImportDeclaration(parent) || ts.isExportDeclaration(parent)) {
+      return false;
+    }
+    if (ts.isTypeNode(parent) || ts.isLiteralTypeNode(parent)) {
       return false;
     }
     if (ts.isJsxAttribute(parent)) {
@@ -174,14 +356,56 @@ export class ProblemScanService {
       }
     }
     if (ts.isPropertyAssignment(parent) && ts.isIdentifier(parent.name)) {
-      const ignoredKeys = new Set(['id', 'key', 'className', 'path', 'url', 'href', 'testId']);
-      if (ignoredKeys.has(parent.name.text)) {
+      if (ignoredPropertyKeys.has(parent.name.text)) {
         return false;
       }
     }
-    if (ts.isCallExpression(parent) && ts.isIdentifier(parent.expression) && parent.expression.text === getConfig().functionName) {
+    if (ts.isShorthandPropertyAssignment(parent) || ts.isPropertySignature(parent)) {
+      return false;
+    }
+    if (
+      ts.isCallExpression(parent) &&
+      ts.isIdentifier(parent.expression) &&
+      parent.expression.text === functionName
+    ) {
+      return false;
+    }
+    const callExpression = ts.isCallExpression(parent)
+      ? parent
+      : ts.isNewExpression(parent)
+        ? parent
+        : ts.isPropertyAccessExpression(parent) && ts.isCallExpression(parent.parent)
+          ? parent.parent
+          : undefined;
+    if (callExpression) {
+      const callName = this.getCallName(callExpression.expression);
+      if (callName && ignoredCallNames.has(callName)) {
+        return false;
+      }
+      if (ts.isNewExpression(callExpression) && callName && ['Error', 'TypeError', 'RangeError'].includes(callName)) {
+        return false;
+      }
+    }
+    if (ts.isVariableDeclaration(parent) && ts.isIdentifier(parent.name)) {
+      const variableName = parent.name.text;
+      if (/(path|url|href|route|variant|type|class|icon|mode|status|test)/i.test(variableName)) {
+        return false;
+      }
+    }
+    if (ts.isBinaryExpression(parent) && parent.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
       return false;
     }
     return true;
+  }
+
+  private getCallName(expression: ts.Expression): string | undefined {
+    if (ts.isIdentifier(expression)) {
+      return expression.text;
+    }
+    if (ts.isPropertyAccessExpression(expression)) {
+      const left = this.getCallName(expression.expression);
+      return left ? `${left}.${expression.name.text}` : expression.name.text;
+    }
+    return undefined;
   }
 }

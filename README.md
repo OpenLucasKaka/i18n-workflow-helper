@@ -49,7 +49,12 @@ Then open this project in VS Code and press `F5`.
   "i18nWorkflow.defaultLanguage": "en",
   "i18nWorkflow.languages": ["en", "zh-CN"],
   "i18nWorkflow.functionName": "t",
-  "i18nWorkflow.include": ["src/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,vue}"],
+  "i18nWorkflow.include": [
+    "src/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,vue}",
+    "app/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,vue}",
+    "pages/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,vue}",
+    "components/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,vue}"
+  ],
   "i18nWorkflow.exclude": ["**/node_modules/**", "**/dist/**"]
 }
 ```
@@ -62,7 +67,9 @@ Recommended commands:
 ## Commands
 
 - `i18n: Extract Selected Text`
+- `i18n: Extract Hardcoded Text In Current File`
 - `i18n: Scan Workspace`
+- `i18n: Scan Current File`
 - `i18n: Export Locale JSON Files`
 - `i18n: Import Locale JSON File`
 - `i18n: Apply Pending Import`
@@ -76,6 +83,9 @@ Recommended commands:
 2. Select text in a supported source file and run `i18n: Extract Selected Text`.
 3. Run `i18n: Scan Workspace` to inspect problems in the Explorer view.
 4. Import locale files with `i18n: Import Locale JSON File` and review the diff before applying.
+
+If your page code lives outside the configured include paths, open the file and run `i18n: Scan Current File`.
+If you want to batch-convert a file after reviewing it, run `i18n: Extract Hardcoded Text In Current File`.
 
 Quick fix is also supported for hardcoded text:
 

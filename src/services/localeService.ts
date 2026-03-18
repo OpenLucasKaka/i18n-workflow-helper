@@ -14,14 +14,14 @@ export class LocaleService {
   private readonly encoder = new TextEncoder();
   private readonly decoder = new TextDecoder();
 
-  async ensureKey(key: string, value: string, sourceLanguage?: string): Promise<void> {
-    const config = getConfig();
+  async ensureKey(key: string, value: string, sourceLanguage?: string, resource?: vscode.Uri): Promise<void> {
+    const config = getConfig(resource);
     const resolvedSourceLanguage =
       sourceLanguage && config.languages.includes(sourceLanguage) ? sourceLanguage : config.defaultLanguage;
 
     for (const language of config.languages) {
-      const localeUri = this.getLocaleFileUri(language);
-      const root = await this.readLocaleObject(localeUri);
+      const localeUri = this.getLocaleFileUri(language, resource);
+      const root = await this.readLocaleObject(localeUri, true);
       const flat = flattenObject(root.data);
       const existingValue = flat[key];
       const shouldWriteValue = language === resolvedSourceLanguage;
@@ -36,25 +36,25 @@ export class LocaleService {
     }
   }
 
-  async ensureLocaleFiles(): Promise<void> {
-    const config = getConfig();
+  async ensureLocaleFiles(resource?: vscode.Uri): Promise<void> {
+    const config = getConfig(resource);
     for (const language of config.languages) {
-      const localeUri = this.getLocaleFileUri(language);
-      await this.readLocaleObject(localeUri);
+      const localeUri = this.getLocaleFileUri(language, resource);
+      await this.readLocaleObject(localeUri, true);
     }
   }
 
-  async syncLocaleStructure(): Promise<void> {
-    const config = getConfig();
-    const locales = await this.readAllLocales();
+  async syncLocaleStructure(resource?: vscode.Uri): Promise<void> {
+    const config = getConfig(resource);
+    const locales = await this.readAllLocales(resource);
     const defaultLocale = locales.get(config.defaultLanguage) ?? {};
 
     for (const language of config.languages) {
       if (language === config.defaultLanguage) {
         continue;
       }
-      const localeUri = this.getLocaleFileUri(language);
-      const current = await this.readLocaleObject(localeUri);
+      const localeUri = this.getLocaleFileUri(language, resource);
+      const current = await this.readLocaleObject(localeUri, true);
       let raw = current.raw;
       const existing = flattenObject(current.data);
       let changed = false;
@@ -71,28 +71,28 @@ export class LocaleService {
     }
   }
 
-  async readAllLocales(): Promise<Map<string, Record<string, string>>> {
-    const config = getConfig();
+  async readAllLocales(resource?: vscode.Uri): Promise<Map<string, Record<string, string>>> {
+    const config = getConfig(resource);
     const result = new Map<string, Record<string, string>>();
     for (const language of config.languages) {
-      const localeUri = this.getLocaleFileUri(language);
-      const root = await this.readLocaleObject(localeUri);
+      const localeUri = this.getLocaleFileUri(language, resource);
+      const root = await this.readLocaleObject(localeUri, false);
       result.set(language, flattenObject(root.data));
     }
     return result;
   }
 
-  async exportLocales(targetFolder: vscode.Uri, languages?: string[]): Promise<vscode.Uri[]> {
-    await this.ensureLocaleFiles();
-    await this.syncLocaleStructure();
-    const config = getConfig();
+  async exportLocales(targetFolder: vscode.Uri, languages?: string[], resource?: vscode.Uri): Promise<vscode.Uri[]> {
+    await this.ensureLocaleFiles(resource);
+    await this.syncLocaleStructure(resource);
+    const config = getConfig(resource);
     const writtenFiles: vscode.Uri[] = [];
     const targetLanguages = languages?.length ? languages : config.languages;
 
     await vscode.workspace.fs.createDirectory(targetFolder);
     for (const language of targetLanguages) {
-      const sourceUri = this.getLocaleFileUri(language);
-      const source = await this.readLocaleObject(sourceUri);
+      const sourceUri = this.getLocaleFileUri(language, resource);
+      const source = await this.readLocaleObject(sourceUri, true);
       const exportUri = vscode.Uri.joinPath(targetFolder, `${language}.json`);
       const content = `${JSON.stringify(source.data, null, 2)}\n`;
       await vscode.workspace.fs.writeFile(exportUri, this.encoder.encode(content));
@@ -102,12 +102,12 @@ export class LocaleService {
     return writtenFiles;
   }
 
-  async previewImport(language: string, fileUri: vscode.Uri): Promise<ImportDiffEntry[]> {
-    const targetUri = this.getLocaleFileUri(language);
+  async previewImport(language: string, fileUri: vscode.Uri, resource?: vscode.Uri): Promise<ImportDiffEntry[]> {
+    const targetUri = this.getLocaleFileUri(language, resource);
     const incomingRaw = this.decoder.decode(await vscode.workspace.fs.readFile(fileUri));
     const incomingData = (parse(incomingRaw) as Record<string, unknown>) ?? {};
     const incomingEntries = this.normalizeEntries(incomingData);
-    const current = await this.readLocaleObject(targetUri);
+    const current = await this.readLocaleObject(targetUri, true);
     const currentEntries = flattenObject(current.data);
 
     return Object.entries(incomingEntries)
@@ -120,10 +120,10 @@ export class LocaleService {
       .sort((left, right) => left.key.localeCompare(right.key));
   }
 
-  async buildImportPreview(language: string, fileUri: vscode.Uri): Promise<ImportPreviewResult> {
-    const targetUri = this.getLocaleFileUri(language);
-    const diff = await this.previewImport(language, fileUri);
-    const current = await this.readLocaleObject(targetUri);
+  async buildImportPreview(language: string, fileUri: vscode.Uri, resource?: vscode.Uri): Promise<ImportPreviewResult> {
+    const targetUri = this.getLocaleFileUri(language, resource);
+    const diff = await this.previewImport(language, fileUri, resource);
+    const current = await this.readLocaleObject(targetUri, true);
     let raw = current.raw;
 
     for (const entry of diff) {
@@ -140,14 +140,14 @@ export class LocaleService {
     };
   }
 
-  async importLanguageFile(language: string, fileUri: vscode.Uri): Promise<number> {
-    const diff = await this.previewImport(language, fileUri);
-    return this.applyImportDiff(language, diff);
+  async importLanguageFile(language: string, fileUri: vscode.Uri, resource?: vscode.Uri): Promise<number> {
+    const diff = await this.previewImport(language, fileUri, resource);
+    return this.applyImportDiff(language, diff, resource);
   }
 
-  async applyImportDiff(language: string, diff: ImportDiffEntry[]): Promise<number> {
-    const targetUri = this.getLocaleFileUri(language);
-    const current = await this.readLocaleObject(targetUri);
+  async applyImportDiff(language: string, diff: ImportDiffEntry[], resource?: vscode.Uri): Promise<number> {
+    const targetUri = this.getLocaleFileUri(language, resource);
+    const current = await this.readLocaleObject(targetUri, true);
     let raw = current.raw;
     let updatedCount = 0;
 
@@ -165,14 +165,14 @@ export class LocaleService {
     return updatedCount;
   }
 
-  async getLocaleFileSummaries(): Promise<LocaleFileSummary[]> {
-    const config = getConfig();
+  async getLocaleFileSummaries(resource?: vscode.Uri): Promise<LocaleFileSummary[]> {
+    const config = getConfig(resource);
     const summaries: LocaleFileSummary[] = [];
 
     for (const language of config.languages) {
-      const uri = this.getLocaleFileUri(language);
+      const uri = this.getLocaleFileUri(language, resource);
       try {
-        const file = await this.readLocaleObject(uri);
+        const file = await this.readLocaleObject(uri, false);
         summaries.push({
           language,
           uri,
@@ -187,9 +187,9 @@ export class LocaleService {
     return summaries;
   }
 
-  getLocaleDirectorySummary(): LocaleDirectorySummary {
-    const config = getConfig();
-    const folder = vscode.workspace.workspaceFolders?.[0];
+  getLocaleDirectorySummary(resource?: vscode.Uri): LocaleDirectorySummary {
+    const config = getConfig(resource);
+    const folder = this.getWorkspaceFolder(resource);
     if (!folder) {
       throw new Error('Open a workspace before using i18n workflow commands.');
     }
@@ -202,23 +202,42 @@ export class LocaleService {
     };
   }
 
-  async getKeyUsages(key: string): Promise<LocaleKeyUsage[]> {
-    const locales = await this.readAllLocales();
-    return Array.from(locales.entries()).map(([language, entries]) => ({
-      language,
-      value: entries[key]
-    }));
+  async getKeyUsages(key: string, resource?: vscode.Uri): Promise<LocaleKeyUsage[]> {
+    const config = getConfig(resource);
+    const usages: LocaleKeyUsage[] = [];
+
+    for (const language of config.languages) {
+      const localeUri = this.getLocaleFileUri(language, resource);
+      try {
+        const root = await this.readLocaleObject(localeUri, false);
+        const entries = flattenObject(root.data);
+        usages.push({
+          language,
+          value: entries[key]
+        });
+      } catch {
+        usages.push({ language, value: undefined });
+      }
+    }
+
+    return usages;
   }
 
-  getLocaleFileUri(language: string): vscode.Uri {
-    return this.resolveLocaleFileUri(language);
+  getLocaleFileUri(language: string, resource?: vscode.Uri): vscode.Uri {
+    return this.resolveLocaleFileUri(language, resource);
   }
 
-  private async readLocaleObject(uri: vscode.Uri): Promise<{ raw: string; data: Record<string, unknown> }> {
+  private async readLocaleObject(
+    uri: vscode.Uri,
+    createIfMissing: boolean
+  ): Promise<{ raw: string; data: Record<string, unknown> }> {
     try {
       const content = this.decoder.decode(await vscode.workspace.fs.readFile(uri));
       return { raw: content, data: (parse(content) as Record<string, unknown>) ?? {} };
     } catch {
+      if (!createIfMissing) {
+        throw new Error(`Locale file does not exist: ${uri.fsPath}`);
+      }
       const parentPath = uri.path.slice(0, uri.path.lastIndexOf('/'));
       await vscode.workspace.fs.createDirectory(uri.with({ path: parentPath }));
       const raw = '{\n}\n';
@@ -253,9 +272,9 @@ export class LocaleService {
     return result;
   }
 
-  private resolveLocaleFileUri(language: string): vscode.Uri {
-    const config = getConfig();
-    const folder = vscode.workspace.workspaceFolders?.[0];
+  private resolveLocaleFileUri(language: string, resource?: vscode.Uri): vscode.Uri {
+    const config = getConfig(resource);
+    const folder = this.getWorkspaceFolder(resource);
     if (!folder) {
       throw new Error('Open a workspace before using i18n workflow commands.');
     }
@@ -273,5 +292,14 @@ export class LocaleService {
     } catch {
       return false;
     }
+  }
+
+  private getWorkspaceFolder(resource?: vscode.Uri): vscode.WorkspaceFolder | undefined {
+    if (resource) {
+      return vscode.workspace.getWorkspaceFolder(resource);
+    }
+    return vscode.window.activeTextEditor
+      ? vscode.workspace.getWorkspaceFolder(vscode.window.activeTextEditor.document.uri) ?? vscode.workspace.workspaceFolders?.[0]
+      : vscode.workspace.workspaceFolders?.[0];
   }
 }

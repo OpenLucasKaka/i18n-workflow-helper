@@ -2,7 +2,7 @@
   "name": "i18n-workflow-helper",
   "displayName": "i18n Workflow Helper",
   "description": "Extract text, scan i18n issues, preview locale diffs, and manage locale files for JS/TS/React/Vue projects.",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "publisher": "12138",
   "preview": true,
   "license": "MIT",
@@ -35,6 +35,7 @@
   "activationEvents": [
     "onStartupFinished",
     "onCommand:i18nWorkflow.extractText",
+    "onCommand:i18nWorkflow.extractHardcodedTextInCurrentFile",
     "onCommand:i18nWorkflow.extractTextAtRange",
     "onCommand:i18nWorkflow.exportLocales",
     "onCommand:i18nWorkflow.importLocale",
@@ -43,6 +44,10 @@
     "onCommand:i18nWorkflow.setDefaultLanguage",
     "onCommand:i18nWorkflow.setLocaleDirectory",
     "onCommand:i18nWorkflow.scanWorkspace",
+    "onCommand:i18nWorkflow.scanCurrentFile",
+    "onCommand:i18nWorkflow.refreshProblems",
+    "onCommand:i18nWorkflow.openProblem",
+    "onCommand:i18nWorkflow.openLocaleFile",
     "onView:i18nWorkflow.workspace"
   ],
   "main": "./out/extension.js",
@@ -53,8 +58,16 @@
         "title": "i18n: Extract Selected Text"
       },
       {
+        "command": "i18nWorkflow.extractHardcodedTextInCurrentFile",
+        "title": "i18n: Extract Hardcoded Text In Current File"
+      },
+      {
         "command": "i18nWorkflow.scanWorkspace",
         "title": "i18n: Scan Workspace"
+      },
+      {
+        "command": "i18nWorkflow.scanCurrentFile",
+        "title": "i18n: Scan Current File"
       },
       {
         "command": "i18nWorkflow.extractTextAtRange",
@@ -139,12 +152,15 @@
         "i18nWorkflow.include": {
           "type": "array",
           "default": [
-            "src/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,vue}"
+            "src/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,vue}",
+            "app/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,vue}",
+            "pages/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,vue}",
+            "components/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,vue}"
           ],
           "items": {
             "type": "string"
           },
-          "description": "Glob patterns included in scanning. Default support covers js/jsx/ts/tsx/mjs/cjs/mts/cts/vue."
+          "description": "Glob patterns included in workspace scanning. Defaults target common app source directories. Use `i18n: Scan Current File` for files outside these paths."
         },
         "i18nWorkflow.exclude": {
           "type": "array",

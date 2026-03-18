@@ -2,14 +2,22 @@ import * as vscode from 'vscode';
 import { applyEdits, format, modify, parse } from 'jsonc-parser';
 import { I18nConfig } from './types';
 
-export function getConfig(): I18nConfig {
-  const config = vscode.workspace.getConfiguration('i18nWorkflow');
+export function getConfig(resource?: vscode.Uri): I18nConfig {
+  const config = vscode.workspace.getConfiguration('i18nWorkflow', resource);
   return {
     localeDir: config.get<string>('localeDir', 'src/locales'),
     defaultLanguage: config.get<string>('defaultLanguage', 'en'),
     languages: config.get<string[]>('languages', ['en', 'zh-CN']),
     functionName: config.get<string>('functionName', 't'),
-    include: config.get<string[]>('include', ['src/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,vue}']),
+    include: config.get<string[]>(
+      'include',
+      [
+        'src/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,vue}',
+        'app/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,vue}',
+        'pages/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,vue}',
+        'components/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,vue}'
+      ]
+    ),
     exclude: config.get<string[]>('exclude', ['**/node_modules/**', '**/dist/**'])
   };
 }

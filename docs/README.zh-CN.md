@@ -50,7 +50,12 @@ npm run build
   "i18nWorkflow.defaultLanguage": "en",
   "i18nWorkflow.languages": ["en", "zh-CN"],
   "i18nWorkflow.functionName": "t",
-  "i18nWorkflow.include": ["src/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,vue}"],
+  "i18nWorkflow.include": [
+    "src/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,vue}",
+    "app/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,vue}",
+    "pages/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,vue}",
+    "components/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,vue}"
+  ],
   "i18nWorkflow.exclude": ["**/node_modules/**", "**/dist/**"]
 }
 ```
@@ -63,7 +68,9 @@ npm run build
 ## 命令
 
 - `i18n: Extract Selected Text`
+- `i18n: Extract Hardcoded Text In Current File`
 - `i18n: Scan Workspace`
+- `i18n: Scan Current File`
 - `i18n: Export Locale JSON Files`
 - `i18n: Import Locale JSON File`
 - `i18n: Apply Pending Import`
@@ -77,6 +84,9 @@ npm run build
 2. 在受支持的代码文件里选中文案，执行 `i18n: Extract Selected Text`。
 3. 执行 `i18n: Scan Workspace`，在 Explorer 里查看问题和语言文件。
 4. 执行 `i18n: Import Locale JSON File`，先看 diff，再决定是否应用。
+
+如果页面代码不在默认扫描目录里，打开目标文件后执行 `i18n: Scan Current File`。
+如果你要把当前文件里的候选文案批量提取出来，执行 `i18n: Extract Hardcoded Text In Current File`。
 
 硬编码文案也支持 Quick Fix：
 

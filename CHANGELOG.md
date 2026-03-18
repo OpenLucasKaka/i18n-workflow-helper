@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.4
+
+- Stabilize command execution by removing locale writes from workspace scan and adding safer command error handling.
+- Add current-file scan and batch extract command for current file.
+- Fix batch extraction key path conflicts and remove the extra namespace input step.
+
 ## 0.1.3
 
 - Reduce VSIX size from 8.0 MB to 2.53 MB by trimming non-runtime files and compressing the logo asset.

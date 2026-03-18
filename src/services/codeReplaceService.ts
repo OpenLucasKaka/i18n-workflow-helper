@@ -62,4 +62,17 @@ export class CodeReplaceService {
     edit.replace(document.uri, target.range, target.replacement);
     return vscode.workspace.applyEdit(edit);
   }
+
+  async replaceSelections(document: vscode.TextDocument, targets: ExtractTarget[]): Promise<boolean> {
+    const edit = new vscode.WorkspaceEdit();
+    const sortedTargets = [...targets].sort(
+      (left, right) => document.offsetAt(right.range.start) - document.offsetAt(left.range.start)
+    );
+
+    for (const target of sortedTargets) {
+      edit.replace(document.uri, target.range, target.replacement);
+    }
+
+    return vscode.workspace.applyEdit(edit);
+  }
 }
