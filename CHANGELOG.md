@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.5
+
+- Prevent passive workspace activation from auto-creating locale JSON files.
+- Make `Scan Workspace` tolerant when locale files are missing and continue scanning.
+- Improve multi-workspace safety by scanning against the active resource workspace.
+- Add scan caching and problem filtering (`i18n: Set Problem Filter`) for better scan performance and navigation.
+
 ## 0.1.4
 
 - Stabilize command execution by removing locale writes from workspace scan and adding safer command error handling.

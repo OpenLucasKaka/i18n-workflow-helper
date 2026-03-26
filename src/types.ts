@@ -6,6 +6,8 @@ export type ProblemType =
   | 'unused-key'
   | 'locale-mismatch';
 
+export type ProblemFilter = 'all' | ProblemType;
+
 export interface I18nConfig {
   localeDir: string;
   defaultLanguage: string;
@@ -32,6 +34,8 @@ export interface ScanSummary {
   scannedFiles: string[];
   skippedFiles: string[];
   unmatchedFiles: string[];
+  cacheHits?: number;
+  cacheMisses?: number;
 }
 
 export interface ExtractTarget {

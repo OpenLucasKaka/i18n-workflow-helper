@@ -17,8 +17,8 @@ export function createApplyPendingImportCommand(
     }
 
     const count = await localeService.applyImportDiff(session.language, session.diff);
-    if (session.language === getConfig().defaultLanguage) {
-      await localeService.syncLocaleStructure();
+    if (session.language === getConfig(session.targetUri).defaultLanguage) {
+      await localeService.syncLocaleStructure(session.targetUri, { createMissingFiles: true });
     }
     previewProvider.delete(session.previewUri);
     pendingImport.current = undefined;

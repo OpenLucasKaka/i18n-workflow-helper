@@ -30,7 +30,7 @@
 ## 安装
 
 ```bash
-code --install-extension i18n-workflow-helper-0.1.3.vsix
+code --install-extension i18n-workflow-helper-0.1.5.vsix
 ```
 
 开发模式：
@@ -108,6 +108,14 @@ npm run build
 - 插件市场图标通过 `package.json` 顶层 `icon` 字段配置。
 
 ## 版本说明
+
+### 0.1.5
+
+修复插件被动激活时自动创建 locale 文件的问题；增强多工作区扫描隔离；新增扫描缓存与侧边栏问题类型过滤。
+
+### 0.1.4
+
+增强扫描与命令执行稳定性，并新增当前文件扫描与当前文件批量提取命令。
 
 ### 0.1.3
 

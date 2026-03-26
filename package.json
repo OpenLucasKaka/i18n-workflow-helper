@@ -2,7 +2,7 @@
   "name": "i18n-workflow-helper",
   "displayName": "i18n Workflow Helper",
   "description": "Extract text, scan i18n issues, preview locale diffs, and manage locale files for JS/TS/React/Vue projects.",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "publisher": "12138",
   "preview": true,
   "license": "MIT",
@@ -45,6 +45,7 @@
     "onCommand:i18nWorkflow.setLocaleDirectory",
     "onCommand:i18nWorkflow.scanWorkspace",
     "onCommand:i18nWorkflow.scanCurrentFile",
+    "onCommand:i18nWorkflow.setProblemFilter",
     "onCommand:i18nWorkflow.refreshProblems",
     "onCommand:i18nWorkflow.openProblem",
     "onCommand:i18nWorkflow.openLocaleFile",
@@ -68,6 +69,10 @@
       {
         "command": "i18nWorkflow.scanCurrentFile",
         "title": "i18n: Scan Current File"
+      },
+      {
+        "command": "i18nWorkflow.setProblemFilter",
+        "title": "i18n: Set Problem Filter"
       },
       {
         "command": "i18nWorkflow.extractTextAtRange",

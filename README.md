@@ -29,7 +29,7 @@ It focuses on i18n workflow management instead of translation itself:
 ## Installation
 
 ```bash
-code --install-extension i18n-workflow-helper-0.1.3.vsix
+code --install-extension i18n-workflow-helper-0.1.5.vsix
 ```
 
 For development:
@@ -107,6 +107,14 @@ Quick fix is also supported for hardcoded text:
 - Marketplace icon is configured with the top-level `icon` field in `package.json`.
 
 ## Release Notes
+
+### 0.1.5
+
+Fixed unwanted locale file auto-creation on workspace activation, improved multi-workspace scan isolation, added scan caching, and introduced problem type filtering in the sidebar.
+
+### 0.1.4
+
+Stabilized scan/command execution and added current-file scan + batch extraction command.
 
 ### 0.1.3
 

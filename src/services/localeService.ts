@@ -44,17 +44,27 @@ export class LocaleService {
     }
   }
 
-  async syncLocaleStructure(resource?: vscode.Uri): Promise<void> {
+  async syncLocaleStructure(
+    resource?: vscode.Uri,
+    options?: { createMissingFiles?: boolean }
+  ): Promise<void> {
     const config = getConfig(resource);
     const locales = await this.readAllLocales(resource);
     const defaultLocale = locales.get(config.defaultLanguage) ?? {};
+    const createMissingFiles = options?.createMissingFiles ?? false;
 
     for (const language of config.languages) {
       if (language === config.defaultLanguage) {
         continue;
       }
       const localeUri = this.getLocaleFileUri(language, resource);
-      const current = await this.readLocaleObject(localeUri, true);
+      let current: { raw: string; data: Record<string, unknown> };
+      try {
+        current = await this.readLocaleObject(localeUri, createMissingFiles);
+      } catch {
+        // Do not create locale files during passive sync paths (activation/watcher/scan).
+        continue;
+      }
       let raw = current.raw;
       const existing = flattenObject(current.data);
       let changed = false;
@@ -76,15 +86,20 @@ export class LocaleService {
     const result = new Map<string, Record<string, string>>();
     for (const language of config.languages) {
       const localeUri = this.getLocaleFileUri(language, resource);
-      const root = await this.readLocaleObject(localeUri, false);
-      result.set(language, flattenObject(root.data));
+      try {
+        const root = await this.readLocaleObject(localeUri, false);
+        result.set(language, flattenObject(root.data));
+      } catch {
+        // Missing locale files should not break scanning workflows.
+        result.set(language, {});
+      }
     }
     return result;
   }
 
   async exportLocales(targetFolder: vscode.Uri, languages?: string[], resource?: vscode.Uri): Promise<vscode.Uri[]> {
     await this.ensureLocaleFiles(resource);
-    await this.syncLocaleStructure(resource);
+    await this.syncLocaleStructure(resource, { createMissingFiles: true });
     const config = getConfig(resource);
     const writtenFiles: vscode.Uri[] = [];
     const targetLanguages = languages?.length ? languages : config.languages;

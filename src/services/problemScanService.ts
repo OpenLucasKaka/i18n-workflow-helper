@@ -7,6 +7,24 @@ import { expandBraceGlob, globToRegExp, isNaturalLanguage, stripQuotes } from '.
 import { scanVueDocument } from '../vueSupport';
 import { LocaleService } from './localeService';
 
+interface UsedKeyLocation {
+  key: string;
+  uri: vscode.Uri;
+  range: vscode.Range;
+}
+
+interface DocumentScanResult {
+  hardcodedProblems: ScanProblem[];
+  usedKeys: UsedKeyLocation[];
+}
+
+interface CachedFileScan {
+  mtime: number;
+  size: number;
+  functionName: string;
+  result: DocumentScanResult;
+}
+
 export class ProblemScanService {
   private lastScanSummary: ScanSummary = {
     workspaceRoots: [],
@@ -14,15 +32,19 @@ export class ProblemScanService {
     excludePatterns: [],
     scannedFiles: [],
     skippedFiles: [],
-    unmatchedFiles: []
+    unmatchedFiles: [],
+    cacheHits: 0,
+    cacheMisses: 0
   };
+  private readonly fileScanCache = new Map<string, CachedFileScan>();
 
   constructor(private readonly localeService: LocaleService) {}
 
-  async scanWorkspace(): Promise<ScanProblem[]> {
-    const config = getConfig();
-    const workspaceRoots = (vscode.workspace.workspaceFolders ?? []).map((folder) => folder.uri.fsPath);
-    const locales = await this.localeService.readAllLocales();
+  async scanWorkspace(resource?: vscode.Uri): Promise<ScanProblem[]> {
+    const config = getConfig(resource);
+    const targetFolder = this.getTargetWorkspaceFolder(resource);
+    const workspaceRoots = targetFolder ? [targetFolder.uri.fsPath] : [];
+    const locales = await this.localeService.readAllLocales(resource);
     const defaultLocale = locales.get(config.defaultLanguage) ?? {};
     const usedKeys = new Map<string, { uri: vscode.Uri; range: vscode.Range }[]>();
     const problems: ScanProblem[] = [];
@@ -30,19 +52,27 @@ export class ProblemScanService {
     const excludePatterns = config.exclude.flatMap((pattern) => expandBraceGlob(pattern));
     const includeMatchers = includePatterns.map((pattern) => globToRegExp(pattern));
     const excludeMatchers = excludePatterns.map((pattern) => globToRegExp(pattern));
-    const folderUris = vscode.workspace.workspaceFolders?.map((folder) => folder.uri) ?? [];
+    const folderUris = targetFolder ? [targetFolder.uri] : [];
     const scannedFiles: string[] = [];
     const skippedFiles: string[] = [];
     const unmatchedFiles: string[] = [];
     const scannedUris: vscode.Uri[] = [];
+    let cacheHits = 0;
+    let cacheMisses = 0;
 
     if (folderUris.length === 0) {
-      const activeDocument = vscode.window.activeTextEditor?.document;
+      const activeDocument =
+        resource && vscode.window.activeTextEditor?.document.uri.toString() === resource.toString()
+          ? vscode.window.activeTextEditor.document
+          : vscode.window.activeTextEditor?.document;
       if (activeDocument) {
         const relativePath = activeDocument.fileName.replace(/\\/g, '/');
         scannedFiles.push(relativePath);
         scannedUris.push(activeDocument.uri);
-        this.scanDocument(activeDocument, problems, usedKeys, defaultLocale);
+        const documentResult = this.scanDocument(activeDocument, config.functionName);
+        problems.push(...documentResult.hardcodedProblems);
+        this.applyUsedKeys(documentResult.usedKeys, usedKeys);
+        this.appendMissingKeyProblems(documentResult.usedKeys, defaultLocale, problems);
       }
     } else {
       for (const folderUri of folderUris) {
@@ -58,8 +88,44 @@ export class ProblemScanService {
         );
       }
       for (const file of scannedUris) {
-        const document = await vscode.workspace.openTextDocument(file);
-        this.scanDocument(document, problems, usedKeys, defaultLocale);
+        let stat: vscode.FileStat;
+        try {
+          stat = await vscode.workspace.fs.stat(file);
+        } catch {
+          continue;
+        }
+        const cacheKey = file.toString();
+        const cached = this.fileScanCache.get(cacheKey);
+        let documentResult: DocumentScanResult;
+
+        if (
+          cached &&
+          cached.mtime === stat.mtime &&
+          cached.size === stat.size &&
+          cached.functionName === config.functionName
+        ) {
+          documentResult = cached.result;
+          cacheHits += 1;
+        } else {
+          const document = await vscode.workspace.openTextDocument(file);
+          documentResult = this.scanDocument(document, config.functionName);
+          this.fileScanCache.set(cacheKey, {
+            mtime: stat.mtime,
+            size: stat.size,
+            functionName: config.functionName,
+            result: documentResult
+          });
+          cacheMisses += 1;
+        }
+
+        problems.push(...documentResult.hardcodedProblems);
+        this.applyUsedKeys(documentResult.usedKeys, usedKeys);
+        this.appendMissingKeyProblems(documentResult.usedKeys, defaultLocale, problems);
+      }
+
+      // Prevent unbounded growth on large repos or frequent config changes.
+      if (this.fileScanCache.size > 5000) {
+        this.fileScanCache.clear();
       }
     }
 
@@ -69,7 +135,9 @@ export class ProblemScanService {
       excludePatterns,
       scannedFiles,
       skippedFiles,
-      unmatchedFiles
+      unmatchedFiles,
+      cacheHits,
+      cacheMisses
     };
 
     for (const [key, value] of Object.entries(defaultLocale)) {
@@ -121,17 +189,21 @@ export class ProblemScanService {
     const locales = await this.localeService.readAllLocales(document.uri);
     const defaultLocale = locales.get(config.defaultLanguage) ?? {};
     const usedKeys = new Map<string, { uri: vscode.Uri; range: vscode.Range }[]>();
-    const problems: ScanProblem[] = [];
+    const result = this.scanDocument(document, config.functionName);
+    const problems: ScanProblem[] = [...result.hardcodedProblems];
     const relativePath = vscode.workspace.asRelativePath(document.uri, false).replace(/\\/g, '/');
 
-    this.scanDocument(document, problems, usedKeys, defaultLocale);
+    this.applyUsedKeys(result.usedKeys, usedKeys);
+    this.appendMissingKeyProblems(result.usedKeys, defaultLocale, problems);
     this.lastScanSummary = {
       workspaceRoots: (vscode.workspace.workspaceFolders ?? []).map((folder) => folder.uri.fsPath),
       includePatterns: ['<current-file>'],
       excludePatterns: [],
       scannedFiles: [relativePath],
       skippedFiles: [],
-      unmatchedFiles: []
+      unmatchedFiles: [],
+      cacheHits: 0,
+      cacheMisses: 1
     };
 
     return problems;
@@ -209,20 +281,26 @@ export class ProblemScanService {
     return false;
   }
 
-  private scanDocument(
-    document: vscode.TextDocument,
-    problems: ScanProblem[],
-    usedKeys: Map<string, { uri: vscode.Uri; range: vscode.Range }[]>,
-    defaultLocale: Record<string, string>
-  ): void {
+  private scanDocument(document: vscode.TextDocument, functionName: string): DocumentScanResult {
+    const hardcodedProblems: ScanProblem[] = [];
+    const usedKeys: UsedKeyLocation[] = [];
+
     if (document.fileName.endsWith('.vue')) {
-      scanVueDocument(document, getConfig(document.uri).functionName, defaultLocale, usedKeys, problems);
-      return;
+      const vueUsedKeys = new Map<string, { uri: vscode.Uri; range: vscode.Range }[]>();
+      scanVueDocument(document, functionName, {}, vueUsedKeys, hardcodedProblems);
+      for (const [key, entries] of vueUsedKeys.entries()) {
+        for (const entry of entries) {
+          usedKeys.push({ key, uri: entry.uri, range: entry.range });
+        }
+      }
+      // Vue scanning currently writes both hardcoded and missing-key directly, so we keep only hardcoded entries.
+      const cleaned = hardcodedProblems.filter((problem) => problem.type === 'hardcoded-text');
+      return { hardcodedProblems: cleaned, usedKeys };
     }
 
     const scriptKind = getScriptKind(document);
     if (scriptKind === ts.ScriptKind.Unknown) {
-      return;
+      return { hardcodedProblems, usedKeys };
     }
 
     const sourceFile = ts.createSourceFile(
@@ -232,27 +310,13 @@ export class ProblemScanService {
       true,
       scriptKind
     );
-    const functionName = getConfig(document.uri).functionName;
-
     const visit = (node: ts.Node): void => {
       if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === functionName) {
         const firstArg = node.arguments[0];
         if (firstArg && ts.isStringLiteral(firstArg)) {
           const key = firstArg.text;
           const range = new vscode.Range(document.positionAt(firstArg.getStart(sourceFile)), document.positionAt(firstArg.getEnd()));
-          const entries = usedKeys.get(key) ?? [];
-          entries.push({ uri: document.uri, range });
-          usedKeys.set(key, entries);
-          if (!(key in defaultLocale)) {
-            problems.push({
-              type: 'missing-key',
-              message: `Missing locale key: ${key}`,
-              severity: vscode.DiagnosticSeverity.Error,
-              uri: document.uri,
-              range,
-              key
-            });
-          }
+          usedKeys.push({ key, uri: document.uri, range });
         }
       }
 
@@ -262,7 +326,7 @@ export class ProblemScanService {
       ) {
         const text = stripQuotes(node.getText(sourceFile));
         if (isNaturalLanguage(text)) {
-          problems.push({
+          hardcodedProblems.push({
             type: 'hardcoded-text',
             message: `Hardcoded text: ${text}`,
             severity: vscode.DiagnosticSeverity.Warning,
@@ -273,7 +337,7 @@ export class ProblemScanService {
       }
 
       if (ts.isJsxText(node) && isNaturalLanguage(node.getText(sourceFile).trim())) {
-        problems.push({
+        hardcodedProblems.push({
           type: 'hardcoded-text',
           message: `Hardcoded text: ${node.getText(sourceFile).trim()}`,
           severity: vscode.DiagnosticSeverity.Warning,
@@ -286,6 +350,52 @@ export class ProblemScanService {
     };
 
     visit(sourceFile);
+    return { hardcodedProblems, usedKeys };
+  }
+
+  private applyUsedKeys(
+    locations: UsedKeyLocation[],
+    usedKeys: Map<string, { uri: vscode.Uri; range: vscode.Range }[]>
+  ): void {
+    for (const location of locations) {
+      const entries = usedKeys.get(location.key) ?? [];
+      entries.push({ uri: location.uri, range: location.range });
+      usedKeys.set(location.key, entries);
+    }
+  }
+
+  private appendMissingKeyProblems(
+    locations: UsedKeyLocation[],
+    defaultLocale: Record<string, string>,
+    problems: ScanProblem[]
+  ): void {
+    for (const location of locations) {
+      if (location.key in defaultLocale) {
+        continue;
+      }
+      problems.push({
+        type: 'missing-key',
+        message: `Missing locale key: ${location.key}`,
+        severity: vscode.DiagnosticSeverity.Error,
+        uri: location.uri,
+        range: location.range,
+        key: location.key
+      });
+    }
+  }
+
+  private getTargetWorkspaceFolder(resource?: vscode.Uri): vscode.WorkspaceFolder | undefined {
+    if (resource) {
+      return vscode.workspace.getWorkspaceFolder(resource);
+    }
+    const activeResource = vscode.window.activeTextEditor?.document.uri;
+    if (activeResource) {
+      const activeFolder = vscode.workspace.getWorkspaceFolder(activeResource);
+      if (activeFolder) {
+        return activeFolder;
+      }
+    }
+    return vscode.workspace.workspaceFolders?.[0];
   }
 
   private isHardcodedCandidate(

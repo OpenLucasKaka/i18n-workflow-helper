@@ -20,6 +20,7 @@ import { ScanProblem } from './types';
 import { ProblemTreeProvider } from './views/problemTreeProvider';
 import { LocaleFileSummary } from './types';
 import { PendingImportSession } from './types';
+import { ProblemFilter } from './types';
 
 export function activate(context: vscode.ExtensionContext): void {
   try {
@@ -34,7 +35,7 @@ export function activate(context: vscode.ExtensionContext): void {
     const outputChannel = vscode.window.createOutputChannel('I18n Workflow');
     outputChannel.appendLine('activate: start');
     const refreshWorkspaceView = async (resource?: vscode.Uri): Promise<void> => {
-      const problems = await problemScanService.scanWorkspace();
+      const problems = await problemScanService.scanWorkspace(resource);
       updateDiagnostics(diagnostics, problems);
       treeProvider.setProblems(problems);
       const localeDirectory = localeService.getLocaleDirectorySummary(resource);
@@ -123,7 +124,12 @@ export function activate(context: vscode.ExtensionContext): void {
       vscode.commands.registerCommand('i18nWorkflow.setDefaultLanguage', createSetDefaultLanguageCommand(safeRefreshWorkspaceView)),
       vscode.commands.registerCommand('i18nWorkflow.setLocaleDirectory', createSetLocaleDirectoryCommand(safeRefreshWorkspaceView)),
       vscode.commands.registerCommand('i18nWorkflow.scanWorkspace', async () => {
-        const command = createScanCommand(problemScanService, treeProvider, outputChannel);
+        const command = createScanCommand(
+          problemScanService,
+          treeProvider,
+          outputChannel,
+          () => vscode.window.activeTextEditor?.document.uri
+        );
         try {
           const resource = vscode.window.activeTextEditor?.document.uri;
           await command();
@@ -147,6 +153,33 @@ export function activate(context: vscode.ExtensionContext): void {
           }
         }
       ),
+      vscode.commands.registerCommand('i18nWorkflow.setProblemFilter', async () => {
+        const counts = treeProvider.getProblemCounts();
+        const currentFilter = treeProvider.getProblemFilter();
+        const options: Array<{ label: string; filter: ProblemFilter; description: string }> = [
+          { label: 'All Problems', filter: 'all', description: `${counts.all} items` },
+          { label: 'Hardcoded Text', filter: 'hardcoded-text', description: `${counts['hardcoded-text']} items` },
+          { label: 'Missing Key', filter: 'missing-key', description: `${counts['missing-key']} items` },
+          { label: 'Unused Key', filter: 'unused-key', description: `${counts['unused-key']} items` },
+          { label: 'Locale Mismatch', filter: 'locale-mismatch', description: `${counts['locale-mismatch']} items` }
+        ];
+        const picked = await vscode.window.showQuickPick(
+          options.map((option) => ({
+            label: option.label,
+            description: option.description,
+            detail: option.filter === currentFilter ? 'Current' : ''
+          })),
+          { title: 'i18n: Set Problem Filter', placeHolder: 'Choose which problem type to show in the sidebar' }
+        );
+        if (!picked) {
+          return;
+        }
+        const selected = options.find((option) => option.label === picked.label);
+        if (!selected) {
+          return;
+        }
+        treeProvider.setProblemFilter(selected.filter);
+      }),
       vscode.commands.registerCommand('i18nWorkflow.refreshProblems', safeRefreshWorkspaceView),
       vscode.commands.registerCommand('i18nWorkflow.openProblem', openProblem),
       vscode.commands.registerCommand('i18nWorkflow.openLocaleFile', openLocaleFile)
